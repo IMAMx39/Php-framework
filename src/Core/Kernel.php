@@ -8,6 +8,7 @@ use Framework\Container\Container;
 use Framework\Controller\AbstractController;
 use Framework\Exception\HttpException;
 use Framework\Http\JsonResponse;
+use Framework\Template\TwigRenderer;
 use Framework\Validation\ValidationException;
 use Framework\Http\Request;
 use Framework\Http\Response;
@@ -166,7 +167,24 @@ class Kernel
 
     private function handleHttpException(HttpException $e): Response
     {
-        return new Response($e->getMessage(), $e->getStatusCode());
+        $status = $e->getStatusCode();
+
+        // Tente de rendre un template d'erreur Twig si disponible
+        if ($this->container->has(TwigRenderer::class)) {
+            try {
+                $twig    = $this->container->get(TwigRenderer::class);
+                $content = $twig->render("errors/{$status}.html.twig", [
+                    'message' => $e->getMessage(),
+                    'status'  => $status,
+                ]);
+
+                return new Response($content, $status, ['Content-Type' => 'text/html; charset=UTF-8']);
+            } catch (\Throwable) {
+                // Template d'erreur absent → réponse texte brute
+            }
+        }
+
+        return new Response($e->getMessage(), $status);
     }
 
     private function handleServerError(\Throwable $e): Response

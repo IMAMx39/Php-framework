@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app.name }}{% endblock %}</title>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        nav {
+            background: #4f46e5;
+            color: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        nav a { color: #e0e7ff; text-decoration: none; margin-left: 1.5rem; }
+        nav a:hover { color: #fff; }
+        nav .brand { font-weight: 700; font-size: 1.2rem; color: #fff; }
+
+        .container { max-width: 960px; margin: 2rem auto; padding: 0 1.5rem; }
+
+        .alert {
+            padding: .875rem 1.25rem;
+            border-radius: .5rem;
+            margin-bottom: 1.5rem;
+            font-size: .95rem;
+        }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error   { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-info    { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: .85rem;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 4rem;
+        }
+
+        {% block stylesheets %}{% endblock %}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="brand">{{ app.name }}</a>
+    <div>
+        <a href="/">Accueil</a>
+        <a href="/api/status">API</a>
+        {% block nav_extra %}{% endblock %}
+    </div>
+</nav>
+
+<div class="container">
+    {% block content %}{% endblock %}
+</div>
+
+<footer>
+    {{ app.name }} &mdash; env: <strong>{{ app.env }}</strong>
+    {% if app.debug %} &mdash; <span style="color:#f59e0b">⚠ debug activé</span>{% endif %}
+</footer>
+
+{% block javascripts %}{% endblock %}
+
+</body>
+</html>

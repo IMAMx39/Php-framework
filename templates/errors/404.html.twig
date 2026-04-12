@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}404 — Page introuvable{% endblock %}
+
+{% block content %}
+<div style="text-align:center; padding:5rem 0;">
+    <p style="font-size:6rem; font-weight:900; color:#e2e8f0; line-height:1;">404</p>
+    <h1 style="font-size:1.5rem; color:#1e293b; margin-bottom:1rem;">Page introuvable</h1>
+    <p style="color:#64748b; margin-bottom:2rem;">{{ message|default("La page que tu cherches n'existe pas.") }}</p>
+    <a href="/" style="
+        background:#4f46e5; color:#fff; padding:.75rem 1.5rem;
+        border-radius:.5rem; text-decoration:none; font-weight:600;
+    ">Retour à l'accueil</a>
+</div>
+{% endblock %}

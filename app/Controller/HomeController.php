@@ -15,40 +15,22 @@ class HomeController extends AbstractController
     #[Route('/', name: 'home')]
     public function index(): Response
     {
-        $html = <<<HTML
-        <!DOCTYPE html>
-        <html lang="fr">
-        <head>
-            <meta charset="UTF-8">
-            <title>PHP Framework</title>
-            <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 60px auto; color: #333; }
-                h1   { color: #4f46e5; }
-                code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
-                ul   { line-height: 2; }
-            </style>
-        </head>
-        <body>
-            <h1>Bienvenue sur PHP Framework !</h1>
-            <p>Ton framework fait maison fonctionne correctement.</p>
-            <h2>Routes disponibles</h2>
-            <ul>
-                <li><code>GET /</code> — Page d'accueil</li>
-                <li><code>GET /hello/{name}</code> — Salutation personnalisée</li>
-                <li><code>GET /api/status</code> — Statut JSON</li>
-                <li><code>POST /api/echo</code> — Echo du body JSON</li>
-            </ul>
-        </body>
-        </html>
-        HTML;
-
-        return $this->response($html);
+        return $this->render('home/index.html.twig', [
+            'routes' => [
+                ['method' => 'GET',  'path' => '/',           'description' => 'Page d\'accueil'],
+                ['method' => 'GET',  'path' => '/hello/{name}','description' => 'Salutation personnalisée'],
+                ['method' => 'GET',  'path' => '/api/status', 'description' => 'Statut JSON de l\'API'],
+                ['method' => 'POST', 'path' => '/api/echo',   'description' => 'Echo du body JSON'],
+            ],
+        ]);
     }
 
     #[Route('/hello/{name}', name: 'hello')]
     public function hello(string $name): Response
     {
-        return $this->response('<h1>Bonjour, ' . htmlspecialchars($name) . ' !</h1>');
+        return $this->render('home/hello.html.twig', [
+            'name' => $name,
+        ]);
     }
 
     #[Route('/api/status', name: 'api.status')]

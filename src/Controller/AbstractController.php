@@ -8,6 +8,7 @@ use Framework\Container\Container;
 use Framework\Http\JsonResponse;
 use Framework\Http\Request;
 use Framework\Http\Response;
+use Framework\Template\TwigRenderer;
 use Framework\Validation\Validator;
 
 abstract class AbstractController
@@ -37,6 +38,21 @@ abstract class AbstractController
     protected function redirect(string $url, int $status = 302): Response
     {
         return Response::redirect($url, $status);
+    }
+
+    /**
+     * Rend un template Twig et retourne une Response HTML.
+     *
+     * Exemple :
+     *   return $this->render('home/index.html.twig', ['user' => $user]);
+     *
+     * @param array<string, mixed> $context Variables passées au template.
+     */
+    protected function render(string $template, array $context = [], int $status = 200): Response
+    {
+        $html = $this->get(TwigRenderer::class)->render($template, $context);
+
+        return new Response($html, $status, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
 
     // ------------------------------------------------------------------

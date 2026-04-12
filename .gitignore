@@ -5,7 +5,8 @@
 .env
 
 # Cache et logs
-/var/
+/var/cache/twig/*
+!/var/cache/twig/.gitkeep
 /storage/logs/
 *.log
 
