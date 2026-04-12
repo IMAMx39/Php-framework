@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 use Framework\Container\Container;
+use Framework\Database\Connection;
 
-/**
- * Enregistre ici tes services dans le conteneur.
- *
- * Exemples :
- *
- *   $container->singleton(Database::class, fn() => new Database($_ENV['DB_DSN']));
- *   $container->bind(MailerInterface::class, SmtpMailer::class);
- */
 return function (Container $container): void {
-    // Tes services ici...
+    /*
+     * Base de données — lue depuis DATABASE_URL dans .env.
+     *
+     * Une seule instance PDO partagée dans toute l'application (singleton).
+     * Injectée automatiquement dans n'importe quel service/controller
+     * qui déclare Connection en paramètre de constructeur.
+     */
+    $container->singleton(Connection::class, fn () => new Connection());
 };
