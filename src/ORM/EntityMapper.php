@@ -7,6 +7,9 @@ namespace Framework\ORM;
 use Framework\ORM\Attribute\Column;
 use Framework\ORM\Attribute\GeneratedValue;
 use Framework\ORM\Attribute\Id;
+use Framework\ORM\Attribute\ManyToOne;
+use Framework\ORM\Attribute\OneToMany;
+use Framework\ORM\Attribute\OneToOne;
 
 /**
  * Convertit les lignes de la BDD en entités PHP et vice-versa.
@@ -84,6 +87,11 @@ class EntityMapper
             $columnAttrs = $property->getAttributes(Column::class);
 
             if (empty($columnAttrs)) {
+                continue;
+            }
+
+            // Ignorer les propriétés de relation (pas de colonne directe en BDD)
+            if ($this->isRelationProperty($property)) {
                 continue;
             }
 
@@ -174,6 +182,16 @@ class EntityMapper
     // ------------------------------------------------------------------
     // Utilitaires
     // ------------------------------------------------------------------
+
+    /**
+     * Indique si une propriété est une relation ORM (pas une colonne directe).
+     */
+    private function isRelationProperty(\ReflectionProperty $property): bool
+    {
+        return !empty($property->getAttributes(ManyToOne::class))
+            || !empty($property->getAttributes(OneToMany::class))
+            || !empty($property->getAttributes(OneToOne::class));
+    }
 
     /**
      * Caste une valeur brute (string depuis PDO) vers le type PHP déclaré.

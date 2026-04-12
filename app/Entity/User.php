@@ -9,6 +9,7 @@ use Framework\ORM\Attribute\Column;
 use Framework\ORM\Attribute\Entity;
 use Framework\ORM\Attribute\GeneratedValue;
 use Framework\ORM\Attribute\Id;
+use Framework\ORM\Attribute\OneToMany;
 
 #[Entity(table: 'users', repositoryClass: UserRepository::class)]
 class User
@@ -29,6 +30,11 @@ class User
 
     #[Column(name: 'created_at', type: 'string', nullable: true)]
     private ?string $createdAt = null;
+
+    // ── OneToMany → Post ──────────────────────────────────────────────
+    // Chargé via find($id, relations: ['posts'])
+    #[OneToMany(targetEntity: Post::class, mappedBy: 'user_id', orderBy: ['created_at' => 'DESC'])]
+    private array $posts = [];
 
     public function __construct(string $name, string $email)
     {
@@ -64,6 +70,12 @@ class User
     public function getCreatedAt(): ?string
     {
         return $this->createdAt;
+    }
+
+    /** @return Post[] */
+    public function getPosts(): array
+    {
+        return $this->posts;
     }
 
     // ------------------------------------------------------------------
