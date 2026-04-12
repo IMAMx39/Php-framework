@@ -2,12 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Controller\HomeController;
 use Framework\Routing\Router;
 
+/**
+ * Routes déclarées manuellement (optionnel).
+ *
+ * Les routes des controllers sont automatiquement découvertes
+ * via l'attribut PHP 8 #[Route(...)] — pas besoin de les répéter ici.
+ *
+ * Utilise ce fichier uniquement pour des routes sans controller
+ * (closures, redirections rapides, etc.).
+ *
+ * Exemple :
+ *
+ *   $router->get('/ping', fn() => 'pong', 'ping');
+ */
 return function (Router $router): void {
-    $router->get('/', [HomeController::class, 'index'], 'home');
-    $router->get('/hello/{name}', [HomeController::class, 'hello'], 'hello');
-    $router->get('/api/status', [HomeController::class, 'status'], 'api.status');
-    $router->post('/api/echo', [HomeController::class, 'echo'], 'api.echo');
+    // Tes routes manuelles ici...
 };

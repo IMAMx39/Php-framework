@@ -6,6 +6,7 @@ namespace Framework\Core;
 
 use Framework\Container\Container;
 use Framework\Http\Request;
+use Framework\Routing\AttributeRouteLoader;
 use Framework\Routing\Router;
 
 class Application
@@ -33,6 +34,7 @@ class Application
         $this->container->instance(Container::class, $this->container);
 
         $this->loadServices();
+        $this->loadAttributeRoutes($router);
         $this->loadRoutes($router);
 
         $this->kernel = new Kernel($this->container, $router);
@@ -87,7 +89,21 @@ class Application
     }
 
     // ------------------------------------------------------------------
-    // Chargement des routes (config/routes.php)
+    // Découverte automatique des routes via attributs PHP 8 #[Route]
+    // ------------------------------------------------------------------
+
+    private function loadAttributeRoutes(Router $router): void
+    {
+        $loader = new AttributeRouteLoader($router);
+
+        $loader->load(
+            controllersDir: $this->basePath . '/app/Controller',
+            namespace: 'App\\Controller',
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Chargement des routes manuelles (config/routes.php) — optionnel
     // ------------------------------------------------------------------
 
     private function loadRoutes(Router $router): void

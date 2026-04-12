@@ -8,9 +8,11 @@ use Framework\Controller\AbstractController;
 use Framework\Http\JsonResponse;
 use Framework\Http\Request;
 use Framework\Http\Response;
+use Framework\Routing\Attribute\Route;
 
 class HomeController extends AbstractController
 {
+    #[Route('/', name: 'home')]
     public function index(): Response
     {
         $html = <<<HTML
@@ -43,11 +45,13 @@ class HomeController extends AbstractController
         return $this->response($html);
     }
 
+    #[Route('/hello/{name}', name: 'hello')]
     public function hello(string $name): Response
     {
-        return $this->response("<h1>Bonjour, " . htmlspecialchars($name) . " !</h1>");
+        return $this->response('<h1>Bonjour, ' . htmlspecialchars($name) . ' !</h1>');
     }
 
+    #[Route('/api/status', name: 'api.status')]
     public function status(Request $request): JsonResponse
     {
         return $this->json([
@@ -58,12 +62,11 @@ class HomeController extends AbstractController
         ]);
     }
 
+    #[Route('/api/echo', name: 'api.echo', methods: ['POST'])]
     public function echo(Request $request): JsonResponse
     {
         $data = $request->isJson() ? $request->json() : $request->all();
 
-        return $this->json([
-            'received' => $data,
-        ]);
+        return $this->json(['received' => $data]);
     }
 }
