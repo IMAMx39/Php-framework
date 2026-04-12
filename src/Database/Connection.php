@@ -30,6 +30,21 @@ class Connection
     }
 
     // ------------------------------------------------------------------
+    // QueryBuilder
+    // ------------------------------------------------------------------
+
+    /**
+     * Démarre un QueryBuilder sur la table donnée.
+     *
+     * Exemple :
+     *   $db->table('users')->where('active', 1)->orderBy('name')->get();
+     */
+    public function table(string $table): QueryBuilder
+    {
+        return new QueryBuilder($this, $table);
+    }
+
+    // ------------------------------------------------------------------
     // API requêtes
     // ------------------------------------------------------------------
 

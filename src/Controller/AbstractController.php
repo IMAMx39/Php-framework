@@ -6,7 +6,9 @@ namespace Framework\Controller;
 
 use Framework\Container\Container;
 use Framework\Http\JsonResponse;
+use Framework\Http\Request;
 use Framework\Http\Response;
+use Framework\Validation\Validator;
 
 abstract class AbstractController
 {
@@ -35,6 +37,26 @@ abstract class AbstractController
     protected function redirect(string $url, int $status = 302): Response
     {
         return Response::redirect($url, $status);
+    }
+
+    // ------------------------------------------------------------------
+    // Validation
+    // ------------------------------------------------------------------
+
+    /**
+     * Valide les données de la requête selon les règles données.
+     * Lève une ValidationException (HTTP 422) si la validation échoue.
+     *
+     * @param array<string, string> $rules
+     * @return array<string, mixed>
+     */
+    protected function validate(Request $request, array $rules): array
+    {
+        $data = $request->isJson()
+            ? (array) $request->json()
+            : $request->all();
+
+        return Validator::make($data, $rules);
     }
 
     // ------------------------------------------------------------------

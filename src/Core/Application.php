@@ -6,6 +6,7 @@ namespace Framework\Core;
 
 use Framework\Container\Container;
 use Framework\Http\Request;
+use Framework\Middleware\MiddlewareInterface;
 use Framework\Routing\AttributeRouteLoader;
 use Framework\Routing\Router;
 
@@ -119,6 +120,17 @@ class Application
         if (is_callable($register)) {
             $register($router);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Middlewares globaux
+    // ------------------------------------------------------------------
+
+    public function addMiddleware(MiddlewareInterface $middleware): static
+    {
+        $this->kernel->addMiddleware($middleware);
+
+        return $this;
     }
 
     // ------------------------------------------------------------------

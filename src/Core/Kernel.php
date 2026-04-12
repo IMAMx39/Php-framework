@@ -8,16 +8,31 @@ use Framework\Container\Container;
 use Framework\Controller\AbstractController;
 use Framework\Exception\HttpException;
 use Framework\Http\JsonResponse;
+use Framework\Validation\ValidationException;
 use Framework\Http\Request;
 use Framework\Http\Response;
+use Framework\Middleware\MiddlewareInterface;
+use Framework\Middleware\Pipeline;
 use Framework\Routing\Router;
 
 class Kernel
 {
+    /** @var MiddlewareInterface[] */
+    private array $middlewares = [];
+
     public function __construct(
         private readonly Container $container,
         private readonly Router $router,
     ) {}
+
+    // ------------------------------------------------------------------
+    // Enregistrement des middlewares globaux
+    // ------------------------------------------------------------------
+
+    public function addMiddleware(MiddlewareInterface $middleware): void
+    {
+        $this->middlewares[] = $middleware;
+    }
 
     // ------------------------------------------------------------------
     // Point d'entrée principal
@@ -26,10 +41,15 @@ class Kernel
     public function handle(Request $request): Response
     {
         try {
-            $route  = $this->router->match($request);
-            $result = $this->callHandler($route->getHandler(), $request, $route->getParameters());
+            $pipeline = new Pipeline();
 
-            return $this->prepareResponse($result);
+            foreach ($this->middlewares as $middleware) {
+                $pipeline->pipe($middleware);
+            }
+
+            return $pipeline->run($request, fn (Request $req) => $this->dispatch($req));
+        } catch (ValidationException $e) {
+            return new JsonResponse(['message' => $e->getMessage(), 'errors' => $e->getErrors()], 422);
         } catch (HttpException $e) {
             return $this->handleHttpException($e);
         } catch (\Throwable $e) {
@@ -38,8 +58,16 @@ class Kernel
     }
 
     // ------------------------------------------------------------------
-    // Dispatch du handler
+    // Dispatch vers le handler de route
     // ------------------------------------------------------------------
+
+    private function dispatch(Request $request): Response
+    {
+        $route  = $this->router->match($request);
+        $result = $this->callHandler($route->getHandler(), $request, $route->getParameters());
+
+        return $this->prepareResponse($result);
+    }
 
     private function callHandler(mixed $handler, Request $request, array $params): mixed
     {
@@ -75,11 +103,9 @@ class Kernel
      */
     private function invoke(callable $callable, Request $request, array $routeParams): mixed
     {
-        if (is_array($callable)) {
-            $reflection = new \ReflectionMethod($callable[0], $callable[1]);
-        } else {
-            $reflection = new \ReflectionFunction(\Closure::fromCallable($callable));
-        }
+        $reflection = is_array($callable)
+            ? new \ReflectionMethod($callable[0], $callable[1])
+            : new \ReflectionFunction(\Closure::fromCallable($callable));
 
         $args = [];
 
