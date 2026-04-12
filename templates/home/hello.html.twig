@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Bonjour {{ name }} — {{ app.name }}{% endblock %}
+
+{% block content %}
+<div style="text-align:center; padding:4rem 0;">
+    <h1 style="font-size:2rem; color:#4f46e5;">
+        Bonjour, <strong>{{ name }}</strong> !
+    </h1>
+    <p style="color:#64748b; margin-top:1rem;">
+        <a href="/" style="color:#4f46e5;">← Retour à l'accueil</a>
+    </p>
+</div>
+{% endblock %}

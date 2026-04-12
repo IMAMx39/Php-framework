@@ -1,0 +1,32 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+use Framework\Console\Command\MigrateCommand;
+use Framework\Console\Command\MigrateRollbackCommand;
+use Framework\Console\Command\MigrateStatusCommand;
+use Framework\Console\ConsoleApplication;
+use Framework\Core\Application;
+use Framework\Database\Connection;
+use Framework\Migration\MigrationRunner;
+
+$app       = new Application(dirname(__DIR__));
+$container = $app->getContainer();
+
+// Runner de migrations
+$runner = new MigrationRunner(
+    db: $container->get(Connection::class),
+    migrationsPath: dirname(__DIR__) . '/migrations',
+    migrationsNamespace: 'Migrations',
+);
+
+// Console
+$console = new ConsoleApplication($container);
+$console->add(new MigrateCommand($runner));
+$console->add(new MigrateRollbackCommand($runner));
+$console->add(new MigrateStatusCommand($runner));
+
+exit($console->run($argv));

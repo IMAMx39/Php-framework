@@ -1,0 +1,21 @@
+# Dépendances
+/vendor/
+
+# Environnement local (contient des secrets)
+.env
+
+# Cache et logs
+/var/cache/twig/*
+!/var/cache/twig/.gitkeep
+/storage/logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
