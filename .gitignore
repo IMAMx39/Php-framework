@@ -4,6 +4,9 @@
 # Environnement local (contient des secrets)
 .env
 
+# PHPUnit
+.phpunit.result.cache
+
 # Cache et logs
 /var/cache/twig/*
 !/var/cache/twig/.gitkeep

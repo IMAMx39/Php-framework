@@ -8,6 +8,7 @@ use Framework\Database\Connection;
 use Framework\Database\QueryBuilder;
 use Framework\ORM\Attribute\Column;
 use Framework\ORM\Attribute\Entity;
+use Framework\ORM\Attribute\ManyToMany;
 use Framework\ORM\Attribute\ManyToOne;
 use Framework\ORM\Attribute\OneToMany;
 use Framework\ORM\Attribute\OneToOne;
@@ -18,6 +19,12 @@ use Framework\ORM\Attribute\OneToOne;
  * ── Lecture simple ──────────────────────────────────────────────
  *   find(1)
  *   findAll()
+ *
+ * ── ManyToMany ──────────────────────────────────────────────────
+ *   find(1, relations: ['tags'])
+ *   attach(entity, related, 'tags')   → INSERT dans la pivot
+ *   detach(entity, related, 'tags')   → DELETE dans la pivot
+ *   sync(entity, [tag1, tag2], 'tags') → remplace toutes les relations
  *   findBy(['active' => 1], ['name' => 'ASC'], limit: 10)
  *   findOneBy(['email' => 'a@b.com'])
  *   count(['active' => 1])
@@ -202,6 +209,105 @@ abstract class AbstractRepository
                 $this->loadOneToMany($entity, $property, $attr);
                 continue;
             }
+
+            if (!empty($property->getAttributes(ManyToMany::class))) {
+                /** @var ManyToMany $attr */
+                $attr = $property->getAttributes(ManyToMany::class)[0]->newInstance();
+                $this->loadManyToMany($entity, $property, $attr);
+                continue;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // ManyToMany — gestion de la table pivot
+    // ------------------------------------------------------------------
+
+    /**
+     * Ajoute une relation dans la table pivot (idempotent).
+     *
+     * Exemple : $this->attach($post, $tag, 'tags');
+     */
+    protected function attach(object $entity, object $related, string $propertyName): void
+    {
+        $attr = $this->getManyToManyAttr($entity, $propertyName);
+
+        $entityId  = $this->mapper->getId($entity);
+        $relatedId = $this->mapper->getId($related);
+
+        // Évite les doublons
+        $exists = $this->db->fetchOne(
+            "SELECT 1 FROM {$attr->joinTable}
+             WHERE {$attr->joinColumn} = ? AND {$attr->inverseJoinColumn} = ?",
+            [$entityId, $relatedId],
+        );
+
+        if (!$exists) {
+            $this->db->query(
+                "INSERT INTO {$attr->joinTable} ({$attr->joinColumn}, {$attr->inverseJoinColumn})
+                 VALUES (?, ?)",
+                [$entityId, $relatedId],
+            );
+        }
+    }
+
+    /**
+     * Supprime une relation de la table pivot.
+     *
+     * Exemple : $this->detach($post, $tag, 'tags');
+     */
+    protected function detach(object $entity, object $related, string $propertyName): void
+    {
+        $attr = $this->getManyToManyAttr($entity, $propertyName);
+
+        $this->db->query(
+            "DELETE FROM {$attr->joinTable}
+             WHERE {$attr->joinColumn} = ? AND {$attr->inverseJoinColumn} = ?",
+            [$this->mapper->getId($entity), $this->mapper->getId($related)],
+        );
+    }
+
+    /**
+     * Remplace toutes les relations par la nouvelle collection (INSERT/DELETE diff).
+     *
+     * Exemple : $this->sync($post, [$tag1, $tag2], 'tags');
+     */
+    protected function sync(object $entity, array $relatedCollection, string $propertyName): void
+    {
+        $attr     = $this->getManyToManyAttr($entity, $propertyName);
+        $entityId = $this->mapper->getId($entity);
+
+        // Récupère les IDs actuels en pivot
+        $currentRows = $this->db->fetchAll(
+            "SELECT {$attr->inverseJoinColumn} FROM {$attr->joinTable}
+             WHERE {$attr->joinColumn} = ?",
+            [$entityId],
+        );
+        $currentIds = array_column($currentRows, $attr->inverseJoinColumn);
+
+        // IDs de la nouvelle collection
+        $newIds = array_map(fn ($r) => $this->mapper->getId($r), $relatedCollection);
+
+        // DELETE ceux qui ne sont plus dans la nouvelle collection
+        foreach ($currentIds as $id) {
+            if (!in_array($id, $newIds, true)) {
+                $this->db->query(
+                    "DELETE FROM {$attr->joinTable}
+                     WHERE {$attr->joinColumn} = ? AND {$attr->inverseJoinColumn} = ?",
+                    [$entityId, $id],
+                );
+            }
+        }
+
+        // INSERT les nouveaux
+        foreach ($newIds as $id) {
+            if (!in_array($id, $currentIds, true)) {
+                $this->db->query(
+                    "INSERT INTO {$attr->joinTable} ({$attr->joinColumn}, {$attr->inverseJoinColumn})
+                     VALUES (?, ?)",
+                    [$entityId, $id],
+                );
+            }
         }
     }
 
@@ -235,6 +341,51 @@ abstract class AbstractRepository
 
         $property->setAccessible(true);
         $property->setValue($entity, $related);
+    }
+
+    // ── ManyToMany ─────────────────────────────────────────────────────
+
+    private function loadManyToMany(object $entity, \ReflectionProperty $property, ManyToMany $attr): void
+    {
+        $entityId = $this->mapper->getId($entity);
+
+        if ($entityId === null) {
+            return;
+        }
+
+        $targetTable = $this->resolveTableFor($attr->targetEntity);
+        $targetIdCol = $this->mapper->getIdColumnName($attr->targetEntity);
+
+        // Requête avec JOIN sur la table pivot
+        $orderBy = '';
+        if (!empty($attr->orderBy)) {
+            $parts   = array_map(fn ($col, $dir) => "$col $dir", array_keys($attr->orderBy), $attr->orderBy);
+            $orderBy = ' ORDER BY ' . implode(', ', $parts);
+        }
+
+        $sql = "SELECT t.* FROM {$targetTable} t
+                JOIN {$attr->joinTable} jt ON t.{$targetIdCol} = jt.{$attr->inverseJoinColumn}
+                WHERE jt.{$attr->joinColumn} = ?{$orderBy}";
+
+        $rows    = $this->db->fetchAll($sql, [$entityId]);
+        $related = $this->mapper->hydrateAll($attr->targetEntity, $rows);
+
+        $property->setAccessible(true);
+        $property->setValue($entity, $related);
+    }
+
+    private function getManyToManyAttr(object $entity, string $propertyName): ManyToMany
+    {
+        $property = (new \ReflectionClass($entity))->getProperty($propertyName);
+        $attrs    = $property->getAttributes(ManyToMany::class);
+
+        if (empty($attrs)) {
+            throw new \InvalidArgumentException(
+                "La propriété « {$propertyName} » n'a pas d'attribut #[ManyToMany]."
+            );
+        }
+
+        return $attrs[0]->newInstance();
     }
 
     // ── OneToMany ──────────────────────────────────────────────────────
@@ -326,6 +477,17 @@ abstract class AbstractRepository
     private function toSnakeCase(string $name): string
     {
         return strtolower(preg_replace('/[A-Z]/', '_$0', lcfirst($name)));
+    }
+
+    private function resolveTableFor(string $entityClass): string
+    {
+        $attrs = (new \ReflectionClass($entityClass))->getAttributes(Entity::class);
+
+        if (empty($attrs)) {
+            throw new \RuntimeException("La classe $entityClass n'a pas d'attribut #[Entity].");
+        }
+
+        return $attrs[0]->newInstance()->table;
     }
 
     // ------------------------------------------------------------------

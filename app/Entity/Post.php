@@ -9,6 +9,7 @@ use Framework\ORM\Attribute\Column;
 use Framework\ORM\Attribute\Entity;
 use Framework\ORM\Attribute\GeneratedValue;
 use Framework\ORM\Attribute\Id;
+use Framework\ORM\Attribute\ManyToMany;
 use Framework\ORM\Attribute\ManyToOne;
 use Framework\ORM\Attribute\OneToMany;
 
@@ -40,6 +41,18 @@ class Post
     #[OneToMany(targetEntity: Comment::class, mappedBy: 'post_id', orderBy: ['created_at' => 'ASC'])]
     private array $comments = [];
 
+    // ── ManyToMany → Tag ────────────────────��────────────────────────
+    // Chargé via find($id, relations: ['tags'])
+    // Géré via attach() / detach() / sync() dans PostRepository
+    #[ManyToMany(
+        targetEntity: Tag::class,
+        joinTable: 'post_tags',
+        joinColumn: 'post_id',
+        inverseJoinColumn: 'tag_id',
+        orderBy: ['name' => 'ASC'],
+    )]
+    private array $tags = [];
+
     #[Column(name: 'created_at', type: 'string', nullable: true)]
     private ?string $createdAt = null;
 
@@ -57,6 +70,7 @@ class Post
     public function getUserId(): ?int       { return $this->userId; }
     public function getAuthor(): ?User      { return $this->author; }
     public function getComments(): array    { return $this->comments; }
+    public function getTags(): array        { return $this->tags; }
     public function getCreatedAt(): ?string { return $this->createdAt; }
 
     public function setTitle(string $title): static      { $this->title   = $title;   return $this; }

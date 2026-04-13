@@ -25,6 +25,9 @@ class User
     #[Column(type: 'string', length: 180, unique: true)]
     private string $email;
 
+    #[Column(type: 'string', nullable: true)]
+    private ?string $password = null;
+
     #[Column(name: 'is_active', type: 'boolean')]
     private bool $isActive = true;
 
@@ -60,6 +63,11 @@ class User
     public function getEmail(): string
     {
         return $this->email;
+    }
+
+    public function getPassword(): ?string
+    {
+        return $this->password;
     }
 
     public function isActive(): bool
@@ -99,6 +107,16 @@ class User
     public function setActive(bool $active): static
     {
         $this->isActive = $active;
+
+        return $this;
+    }
+
+    /**
+     * Hash et stocke le mot de passe en clair.
+     */
+    public function setPassword(string $plainPassword): static
+    {
+        $this->password = password_hash($plainPassword, PASSWORD_BCRYPT);
 
         return $this;
     }
