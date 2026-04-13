@@ -6,6 +6,11 @@ namespace Framework\Core;
 
 use Framework\Container\Container;
 use Framework\Controller\AbstractController;
+use Framework\Event\EventDispatcher;
+use Framework\Event\ExceptionEvent;
+use Framework\Event\KernelEvents;
+use Framework\Event\RequestEvent;
+use Framework\Event\ResponseEvent;
 use Framework\Exception\HttpException;
 use Framework\Http\JsonResponse;
 use Framework\Template\TwigRenderer;
@@ -22,8 +27,9 @@ class Kernel
     private array $middlewares = [];
 
     public function __construct(
-        private readonly Container $container,
-        private readonly Router $router,
+        private readonly Container       $container,
+        private readonly Router          $router,
+        private readonly EventDispatcher $dispatcher = new EventDispatcher(),
     ) {}
 
     // ------------------------------------------------------------------
@@ -42,20 +48,50 @@ class Kernel
     public function handle(Request $request): Response
     {
         try {
+            // ── kernel.request ───────────────────────────────────────────
+            $requestEvent = new RequestEvent($request);
+            $this->dispatcher->emit(KernelEvents::REQUEST, $requestEvent);
+
+            if ($requestEvent->hasResponse()) {
+                return $this->finalize($request, $requestEvent->getResponse());
+            }
+
+            // ── Pipeline → dispatch ──────────────────────────────────────
             $pipeline = new Pipeline();
 
             foreach ($this->middlewares as $middleware) {
                 $pipeline->pipe($middleware);
             }
 
-            return $pipeline->run($request, fn (Request $req) => $this->dispatch($req));
+            $response = $pipeline->run($request, fn (Request $req) => $this->dispatch($req));
+
+            return $this->finalize($request, $response);
         } catch (ValidationException $e) {
             return new JsonResponse(['message' => $e->getMessage(), 'errors' => $e->getErrors()], 422);
         } catch (HttpException $e) {
-            return $this->handleHttpException($e);
+            return $this->handleHttpException($e, $request);
         } catch (\Throwable $e) {
-            return $this->handleServerError($e);
+            return $this->handleServerError($e, $request);
         }
+    }
+
+    /**
+     * Émet kernel.response puis retourne la réponse (éventuellement modifiée).
+     */
+    private function finalize(Request $request, Response $response): Response
+    {
+        $event = new ResponseEvent($request, $response);
+        $this->dispatcher->emit(KernelEvents::RESPONSE, $event);
+
+        return $event->getResponse();
+    }
+
+    /**
+     * Expose le dispatcher pour l'enregistrement de listeners depuis Application.
+     */
+    public function getDispatcher(): EventDispatcher
+    {
+        return $this->dispatcher;
     }
 
     // ------------------------------------------------------------------
@@ -165,8 +201,16 @@ class Kernel
     // Gestion des erreurs
     // ------------------------------------------------------------------
 
-    private function handleHttpException(HttpException $e): Response
+    private function handleHttpException(HttpException $e, Request $request): Response
     {
+        // ── kernel.exception ─────────────────────────────────────────────
+        $exceptionEvent = new ExceptionEvent($request, $e);
+        $this->dispatcher->emit(KernelEvents::EXCEPTION, $exceptionEvent);
+
+        if ($exceptionEvent->hasResponse()) {
+            return $this->finalize($request, $exceptionEvent->getResponse());
+        }
+
         $status = $e->getStatusCode();
 
         // Tente de rendre un template d'erreur Twig si disponible
@@ -187,8 +231,16 @@ class Kernel
         return new Response($e->getMessage(), $status);
     }
 
-    private function handleServerError(\Throwable $e): Response
+    private function handleServerError(\Throwable $e, Request $request): Response
     {
+        // ── kernel.exception ─────────────────────────────────────────────
+        $exceptionEvent = new ExceptionEvent($request, $e);
+        $this->dispatcher->emit(KernelEvents::EXCEPTION, $exceptionEvent);
+
+        if ($exceptionEvent->hasResponse()) {
+            return $this->finalize($request, $exceptionEvent->getResponse());
+        }
+
         $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
 
         if ($debug) {

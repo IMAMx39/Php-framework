@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Framework\Core;
 
 use Framework\Container\Container;
+use Framework\Event\EventDispatcher;
 use Framework\Http\Request;
 use Framework\Middleware\MiddlewareInterface;
 use Framework\Routing\AttributeRouteLoader;
@@ -30,15 +31,18 @@ class Application
 
         $this->container = new Container();
 
-        $router = new Router();
+        $router     = new Router();
+        $dispatcher = new EventDispatcher();
+
         $this->container->instance(Router::class, $router);
         $this->container->instance(Container::class, $this->container);
+        $this->container->instance(EventDispatcher::class, $dispatcher);
 
         $this->loadServices();
         $this->loadAttributeRoutes($router);
         $this->loadRoutes($router);
 
-        $this->kernel = new Kernel($this->container, $router);
+        $this->kernel = new Kernel($this->container, $router, $dispatcher);
     }
 
     // ------------------------------------------------------------------
@@ -147,6 +151,11 @@ class Application
     public function getContainer(): Container
     {
         return $this->container;
+    }
+
+    public function getDispatcher(): EventDispatcher
+    {
+        return $this->container->get(EventDispatcher::class);
     }
 
     public function getBasePath(): string
