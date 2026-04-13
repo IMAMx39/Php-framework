@@ -6,6 +6,9 @@ use App\Repository\UserRepository;
 use Framework\Auth\Auth;
 use Framework\Container\Container;
 use Framework\Database\Connection;
+use Framework\Logger\Handler\FileHandler;
+use Framework\Logger\Logger;
+use Framework\Logger\LogLevel;
 use Framework\Session\Session;
 use Framework\Template\TwigRenderer;
 
@@ -58,6 +61,27 @@ return function (Container $container): void {
         $c->get(Session::class),
         $c->get(UserRepository::class),
     ));
+
+    /*
+     * Logger — écrit dans var/logs/app.log (tous niveaux) et var/logs/error.log (ERROR+).
+     * Injecté automatiquement dans les contrôleurs via le conteneur.
+     */
+    $container->singleton(Logger::class, function (): Logger {
+        $basePath = dirname(__DIR__);
+        $debug    = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
+
+        $logger = new Logger('app');
+        $logger->addHandler(new FileHandler(
+            $basePath . '/var/logs/app.log',
+            $debug ? LogLevel::DEBUG : LogLevel::INFO,
+        ));
+        $logger->addHandler(new FileHandler(
+            $basePath . '/var/logs/error.log',
+            LogLevel::ERROR,
+        ));
+
+        return $logger;
+    });
 
     /*
      * Repositories — injectables via le conteneur ou le constructeur.
