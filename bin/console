@@ -5,28 +5,43 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
+use Framework\Console\Command\MakeControllerCommand;
+use Framework\Console\Command\MakeEntityCommand;
+use Framework\Console\Command\MakeMigrationCommand;
 use Framework\Console\Command\MigrateCommand;
 use Framework\Console\Command\MigrateRollbackCommand;
 use Framework\Console\Command\MigrateStatusCommand;
 use Framework\Console\ConsoleApplication;
+use Framework\Console\Generator;
 use Framework\Core\Application;
 use Framework\Database\Connection;
 use Framework\Migration\MigrationRunner;
 
 $app       = new Application(dirname(__DIR__));
 $container = $app->getContainer();
+$basePath  = dirname(__DIR__);
 
 // Runner de migrations
 $runner = new MigrationRunner(
     db: $container->get(Connection::class),
-    migrationsPath: dirname(__DIR__) . '/migrations',
+    migrationsPath: $basePath . '/migrations',
     migrationsNamespace: 'Migrations',
 );
 
+// Générateur de code
+$generator = new Generator($basePath);
+
 // Console
 $console = new ConsoleApplication($container);
+
+// Migrations
 $console->add(new MigrateCommand($runner));
 $console->add(new MigrateRollbackCommand($runner));
 $console->add(new MigrateStatusCommand($runner));
+
+// Générateurs make:*
+$console->add(new MakeEntityCommand($generator));
+$console->add(new MakeMigrationCommand($generator));
+$console->add(new MakeControllerCommand($generator));
 
 exit($console->run($argv));
