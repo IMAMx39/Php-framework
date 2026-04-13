@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Repository\UserRepository;
+use Framework\Auth\Auth;
 use Framework\Container\Container;
 use Framework\Database\Connection;
+use Framework\Session\Session;
 use Framework\Template\TwigRenderer;
 
 return function (Container $container): void {
@@ -38,6 +40,24 @@ return function (Container $container): void {
 
         return $renderer;
     });
+
+    /*
+     * Session — une seule instance partagée par requête.
+     */
+    $container->singleton(Session::class, function (): Session {
+        $session = new Session();
+        $session->start();
+
+        return $session;
+    });
+
+    /*
+     * Auth — dépend de Session et de UserRepository.
+     */
+    $container->singleton(Auth::class, fn (Container $c) => new Auth(
+        $c->get(Session::class),
+        $c->get(UserRepository::class),
+    ));
 
     /*
      * Repositories — injectables via le conteneur ou le constructeur.
