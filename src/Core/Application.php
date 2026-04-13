@@ -6,7 +6,10 @@ namespace Framework\Core;
 
 use Framework\Container\Container;
 use Framework\Event\EventDispatcher;
+use Framework\Event\ExceptionEvent;
+use Framework\Event\KernelEvents;
 use Framework\Http\Request;
+use Framework\Logger\Logger;
 use Framework\Middleware\MiddlewareInterface;
 use Framework\Routing\AttributeRouteLoader;
 use Framework\Routing\Router;
@@ -43,6 +46,34 @@ class Application
         $this->loadRoutes($router);
 
         $this->kernel = new Kernel($this->container, $router, $dispatcher);
+
+        $this->wireLogger($dispatcher);
+    }
+
+    // ------------------------------------------------------------------
+    // Câblage automatique Logger → kernel.exception
+    // ------------------------------------------------------------------
+
+    private function wireLogger(EventDispatcher $dispatcher): void
+    {
+        if (!$this->container->has(Logger::class)) {
+            return;
+        }
+
+        $logger = $this->container->get(Logger::class);
+
+        $dispatcher->on(
+            KernelEvents::EXCEPTION,
+            function (ExceptionEvent $e) use ($logger): void {
+                $t = $e->getThrowable();
+                $logger->error($t->getMessage(), [
+                    'exception' => $t,
+                    'url'       => $e->getRequest()->getUri(),
+                    'method'    => $e->getRequest()->getMethod(),
+                ]);
+            },
+            priority: -100,  // après les listeners métier
+        );
     }
 
     // ------------------------------------------------------------------
