@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Framework\Template;
 
 use Twig\Environment;
+use Twig\Extension\AbstractExtension;
 use Twig\Extension\DebugExtension;
 use Twig\Loader\FilesystemLoader;
 
@@ -81,6 +82,14 @@ class TwigRenderer
     public function addGlobal(string $name, mixed $value): void
     {
         $this->twig->addGlobal($name, $value);
+    }
+
+    /**
+     * Enregistre une extension Twig (ex: CsrfExtension).
+     */
+    public function addExtension(AbstractExtension $extension): void
+    {
+        $this->twig->addExtension($extension);
     }
 
     /**
