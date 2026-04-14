@@ -12,6 +12,7 @@ use Framework\ORM\Attribute\ManyToMany;
 use Framework\ORM\Attribute\ManyToOne;
 use Framework\ORM\Attribute\OneToMany;
 use Framework\ORM\Attribute\OneToOne;
+use Framework\Pagination\LengthAwarePaginator;
 
 /**
  * Repository de base à étendre pour chaque entité.
@@ -129,6 +130,30 @@ abstract class AbstractRepository
         }
 
         return $qb->count();
+    }
+
+    /**
+     * Retourne une page de résultats.
+     *
+     * @param array<string, mixed>  $criteria
+     * @param array<string, string> $orderBy
+     */
+    public function paginate(
+        int   $page     = 1,
+        int   $perPage  = 15,
+        array $criteria = [],
+        array $orderBy  = [],
+        array $relations = [],
+    ): LengthAwarePaginator {
+        $page    = max(1, $page);
+        $perPage = max(1, $perPage);
+
+        $total  = $this->count($criteria);
+        $offset = ($page - 1) * $perPage;
+
+        $items = $this->findBy($criteria, $orderBy, $perPage, $offset, $relations);
+
+        return new LengthAwarePaginator($items, $total, $page, $perPage);
     }
 
     // ------------------------------------------------------------------
