@@ -21,23 +21,26 @@ $app       = new Application(dirname(__DIR__));
 $container = $app->getContainer();
 $basePath  = dirname(__DIR__);
 
-// Runner de migrations
-$runner = new MigrationRunner(
-    db: $container->get(Connection::class),
-    migrationsPath: $basePath . '/migrations',
-    migrationsNamespace: 'Migrations',
-);
-
 // Générateur de code
 $generator = new Generator($basePath);
 
 // Console
 $console = new ConsoleApplication($container);
 
-// Migrations
-$console->add(new MigrateCommand($runner));
-$console->add(new MigrateRollbackCommand($runner));
-$console->add(new MigrateStatusCommand($runner));
+// Migrations — connexion DB lazily (non disponible sans DATABASE_URL valide)
+try {
+    $runner = new MigrationRunner(
+        db: $container->get(Connection::class),
+        migrationsPath: $basePath . '/migrations',
+        migrationsNamespace: 'Migrations',
+    );
+
+    $console->add(new MigrateCommand($runner));
+    $console->add(new MigrateRollbackCommand($runner));
+    $console->add(new MigrateStatusCommand($runner));
+} catch (\Throwable $e) {
+    fwrite(STDERR, "\033[33m[avertissement] Commandes de migration indisponibles : {$e->getMessage()}\033[0m\n\n");
+}
 
 // Générateurs make:*
 $console->add(new MakeEntityCommand($generator));
