@@ -1,0 +1,96 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Script d'initialisation exécuté automatiquement après
+ * `composer create-project imamx39/php-framework mon-projet`
+ */
+
+$root = dirname(__DIR__);
+
+echo "\n";
+echo "\033[36m┌──────────────────────────────────────┐\033[0m\n";
+echo "\033[36m│  \033[1mPHP Framework — Initialisation\033[0m\033[36m      │\033[0m\n";
+echo "\033[36m└──────────────────────────────────────┘\033[0m\n\n";
+
+// ── 1. Copie du .env ─────────────────────────────────────────────────
+
+$envExample = $root . '/.env.example';
+$envFile    = $root . '/.env';
+
+if (!file_exists($envFile)) {
+    if (file_exists($envExample)) {
+        copy($envExample, $envFile);
+        ok('.env créé depuis .env.example');
+    } else {
+        warn('.env.example introuvable — crée un fichier .env manuellement.');
+    }
+} else {
+    info('.env existe déjà — ignoré.');
+}
+
+// ── 2. Création des répertoires nécessaires ───────────────────────────
+
+$dirs = [
+    'var/cache',
+    'var/logs',
+    'storage/app',
+    'storage/app/uploads',
+    'migrations',
+];
+
+foreach ($dirs as $dir) {
+    $path = $root . '/' . $dir;
+
+    if (!is_dir($path)) {
+        mkdir($path, 0755, recursive: true);
+        ok("Répertoire créé : {$dir}");
+    }
+}
+
+// ── 3. .gitignore des répertoires générés ────────────────────────────
+
+$gitignore = $root . '/.gitignore';
+
+if (file_exists($gitignore)) {
+    $content = file_get_contents($gitignore);
+
+    $toAdd = array_filter([
+        str_contains($content, 'var/cache') ? null : 'var/cache/*',
+        str_contains($content, 'var/logs')  ? null : 'var/logs/*',
+        str_contains($content, 'storage')   ? null : 'storage/app/*',
+    ]);
+
+    if (!empty($toAdd)) {
+        file_put_contents($gitignore, "\n" . implode("\n", $toAdd) . "\n", FILE_APPEND);
+    }
+}
+
+// ── 4. Résumé ─────────────────────────────────────────────────────────
+
+echo "\n";
+echo "\033[32m✓ Projet initialisé avec succès !\033[0m\n\n";
+echo "  Prochaines étapes :\n";
+echo "  \033[36m1.\033[0m Configure ton fichier \033[33m.env\033[0m (DATABASE_URL, etc.)\n";
+echo "  \033[36m2.\033[0m Lance les migrations     \033[33mphp bin/console migrate\033[0m\n";
+echo "  \033[36m3.\033[0m Démarre le serveur       \033[33mcomposer serve\033[0m\n";
+echo "\n";
+
+// ── Helpers ───────────────────────────────────────────────────────────
+
+function ok(string $msg): void
+{
+    echo "  \033[32m✓\033[0m {$msg}\n";
+}
+
+function info(string $msg): void
+{
+    echo "  \033[34mℹ\033[0m {$msg}\n";
+}
+
+function warn(string $msg): void
+{
+    echo "  \033[33m⚠\033[0m {$msg}\n";
+}

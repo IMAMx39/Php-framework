@@ -22,3 +22,7 @@
 # OS
 .DS_Store
 Thumbs.db
+
+var/logs/*
+storage/app/*
+var/cache/*
