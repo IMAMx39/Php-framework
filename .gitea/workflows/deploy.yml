@@ -1,0 +1,85 @@
+name: CD — Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Déploiement en production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_sqlite, mbstring
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-8.2-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-8.2-
+
+      - name: Installer les dépendances (prod)
+        run: composer install --prefer-dist --no-dev --optimize-autoloader --no-interaction
+
+      - name: Lancer les tests avant déploiement
+        run: vendor/bin/phpunit --testdox
+        env:
+          DATABASE_URL: sqlite::memory:
+
+      # ── Déploiement via rsync + SSH ──────────────────────────────────
+      # Prérequis — configurer ces secrets dans Gitea :
+      #   Settings → Secrets :
+      #     DEPLOY_HOST    : IP ou hostname du serveur (ex: 1.2.3.4)
+      #     DEPLOY_USER    : utilisateur SSH (ex: deploy)
+      #     DEPLOY_SSH_KEY : clé SSH privée (contenu complet)
+      #     DEPLOY_PATH    : chemin sur le serveur (ex: /var/www/app)
+      # ─────────────────────────────────────────────────────────────────
+
+      - name: Configurer la clé SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Déployer avec rsync
+        run: |
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='.gitea' \
+            --exclude='tests' \
+            --exclude='var/cache' \
+            --exclude='.env' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/
+
+      - name: Lancer les migrations sur le serveur
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+              "cd ${{ secrets.DEPLOY_PATH }} && php bin/console migrate"
+
+      - name: Vider le cache sur le serveur
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+              "cd ${{ secrets.DEPLOY_PATH }} && rm -rf var/cache/*"
+
+      - name: Notifier le déploiement
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          echo "Déploiement terminé avec le statut : $STATUS"
