@@ -70,15 +70,20 @@ class MakeControllerCommand extends AbstractCommand
         use Framework\Controller\AbstractController;
         use Framework\Http\Request;
         use Framework\Http\Response;
+        use Framework\ORM\EntityManager;
         use Framework\Routing\Attribute\Route;
 
         class {$className} extends AbstractController
         {
+            public function __construct(
+                private readonly EntityManager \$em,
+            ) {}
+
             #[Route('{$routePrefix}', name: '{$routeName}.index', methods: ['GET'])]
             public function index(Request \$request): Response
             {
                 return \$this->render('{$routeName}/index.html.twig', [
-                    // 'items' => [],
+                    // 'items' => \$this->em->getRepository(MyEntity::class)->findAll(),
                 ]);
             }
         }

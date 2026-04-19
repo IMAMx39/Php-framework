@@ -6,6 +6,7 @@ namespace Framework\Core;
 
 use Framework\Container\Container;
 use Framework\Controller\AbstractController;
+use Framework\DTO\AbstractDTO;
 use Framework\Event\EventDispatcher;
 use Framework\Event\ExceptionEvent;
 use Framework\Event\KernelEvents;
@@ -153,6 +154,14 @@ class Kernel
             // Injection de la Request
             if ($type instanceof \ReflectionNamedType && $type->getName() === Request::class) {
                 $args[] = $request;
+                continue;
+            }
+
+            // Injection d'un DTO — construit et validé automatiquement depuis la requête
+            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()
+                && is_subclass_of($type->getName(), AbstractDTO::class)
+            ) {
+                $args[] = ($type->getName())::fromRequest($request);
                 continue;
             }
 
