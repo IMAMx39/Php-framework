@@ -8,6 +8,7 @@ use Framework\Container\Container;
 use Framework\Http\JsonResponse;
 use Framework\Http\Request;
 use Framework\Http\Response;
+use Framework\ORM\EntityManager;
 use Framework\Template\TwigRenderer;
 use Framework\Validation\Validator;
 
@@ -15,10 +16,13 @@ abstract class AbstractController
 {
     private Container $container;
 
+    protected EntityManager $em;
+
     /** @internal Appelé par le Kernel avant d'invoquer l'action. */
     public function setContainer(Container $container): void
     {
         $this->container = $container;
+        $this->em        = $container->get(EntityManager::class);
     }
 
     // ------------------------------------------------------------------
