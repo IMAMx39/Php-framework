@@ -222,6 +222,8 @@ class MakeCommandsTest extends TestCase
         $this->assertStringContainsString('/product', $content);
         $this->assertStringContainsString('product.index', $content);
         $this->assertStringContainsString('public function index(', $content);
+        $this->assertStringContainsString('EntityManager', $content);
+        $this->assertStringContainsString('__construct', $content);
     }
 
     public function testMakeControllerNormalizesControllerSuffix(): void
