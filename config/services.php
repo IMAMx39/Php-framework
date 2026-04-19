@@ -9,6 +9,7 @@ use Framework\Database\Connection;
 use Framework\Logger\Handler\FileHandler;
 use Framework\Logger\Logger;
 use Framework\Logger\LogLevel;
+use Framework\ORM\EntityManager;
 use Framework\Session\Session;
 use Framework\Template\TwigRenderer;
 
@@ -82,6 +83,13 @@ return function (Container $container): void {
 
         return $logger;
     });
+
+    /*
+     * EntityManager — point d'entrée ORM unique ($this->em dans les contrôleurs).
+     */
+    $container->singleton(EntityManager::class, fn (Container $c) => new EntityManager(
+        $c->get(Connection::class),
+    ));
 
     /*
      * Repositories — injectables via le conteneur ou le constructeur.
