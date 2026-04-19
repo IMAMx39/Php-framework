@@ -10,6 +10,11 @@ use Framework\Logger\Handler\FileHandler;
 use Framework\Logger\Logger;
 use Framework\Logger\LogLevel;
 use Framework\ORM\EntityManager;
+use Framework\Queue\Dispatcher;
+use Framework\Queue\Driver\FileQueue;
+use Framework\Queue\Driver\SyncQueue;
+use Framework\Queue\QueueInterface;
+use Framework\Queue\Worker;
 use Framework\Session\Session;
 use Framework\Template\TwigRenderer;
 
@@ -96,5 +101,28 @@ return function (Container $container): void {
      */
     $container->singleton(UserRepository::class, fn (Container $c) => new UserRepository(
         $c->get(Connection::class),
+    ));
+
+    /*
+     * Queue — FileQueue en prod, SyncQueue si QUEUE_DRIVER=sync.
+     * Worker résout les dépendances de handle() via le container.
+     */
+    $container->singleton(QueueInterface::class, function () {
+        $driver = $_ENV['QUEUE_DRIVER'] ?? 'file';
+
+        if ($driver === 'sync') {
+            return new SyncQueue();
+        }
+
+        return new FileQueue(dirname(__DIR__) . '/var');
+    });
+
+    $container->singleton(Dispatcher::class, fn (Container $c) => new Dispatcher(
+        $c->get(QueueInterface::class),
+    ));
+
+    $container->singleton(Worker::class, fn (Container $c) => new Worker(
+        $c->get(QueueInterface::class),
+        $c,
     ));
 };

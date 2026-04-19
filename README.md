@@ -489,6 +489,70 @@ mon-projet/
 
 ---
 
+### Queue / Jobs
+
+Traitement de tâches en arrière-plan — emails, exports, notifications.
+
+```php
+// 1. Créer un job
+class SendWelcomeEmailJob implements JobInterface
+{
+    public function __construct(
+        private readonly string $email,
+        private readonly string $name,
+    ) {}
+
+    // Les dépendances de handle() sont injectées automatiquement
+    public function handle(MailerInterface $mailer): void
+    {
+        $message = (new Message())
+            ->to($this->email, $this->name)
+            ->subject('Bienvenue !')
+            ->html("<h1>Bonjour {$this->name} !</h1>");
+
+        $mailer->send($message);
+    }
+}
+
+// 2. Dispatcher le job (dans un contrôleur)
+public function register(CreateUserDTO $dto): Response
+{
+    // ... créer l'utilisateur ...
+
+    $this->dispatcher->dispatch(new SendWelcomeEmailJob($dto->email, $dto->name));
+
+    // Avec délai (60 secondes)
+    $this->dispatcher->dispatch(new ReminderJob($user->id), delay: 60);
+
+    return $this->json(['status' => 'created'], 201);
+}
+
+// 3. Lancer le worker
+```
+
+```bash
+php bin/console queue:work          # boucle infinie
+php bin/console queue:work --once   # traite un seul job
+php bin/console queue:flush         # vide la queue
+```
+
+**Configuration `.env` :**
+
+```env
+QUEUE_DRIVER=file    # "file" (défaut) ou "sync" (test/dev — exécution immédiate)
+```
+
+**Drivers disponibles :**
+
+| Driver | Usage | Stockage |
+|---|---|---|
+| `file` | Production | `var/queue/*.json` — un fichier par job |
+| `sync` | Test / Dev | Exécution immédiate, pas de stockage |
+
+**Retry automatique :** 3 tentatives par défaut. En cas d'échec définitif, le job est déplacé dans `var/queue/failed/`.
+
+---
+
 ## Tests
 
 ```bash
@@ -497,7 +561,7 @@ composer test
 vendor/bin/phpunit --testdox
 ```
 
-**354 tests · 583 assertions** — tout vert sur PHP 8.1 / 8.2 / 8.3 / 8.4.
+**445 tests · 720 assertions** — tout vert sur PHP 8.1 / 8.2 / 8.3 / 8.4.
 
 ---
 
