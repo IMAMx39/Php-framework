@@ -20,6 +20,13 @@ class Connection
 {
     private \PDO $pdo;
 
+    private ?\Framework\Debug\QueryLog $queryLog = null;
+
+    public function setQueryLog(\Framework\Debug\QueryLog $log): void
+    {
+        $this->queryLog = $log;
+    }
+
     public function __construct()
     {
         $url = $_ENV['DATABASE_URL'] ?? throw new \RuntimeException(
@@ -110,8 +117,10 @@ class Connection
      */
     private function execute(string $sql, array $params): \PDOStatement
     {
-        $stmt = $this->pdo->prepare($sql);
+        $start = hrtime(true);
+        $stmt  = $this->pdo->prepare($sql);
         $stmt->execute($params);
+        $this->queryLog?->record($sql, $params, (hrtime(true) - $start) / 1e6);
 
         return $stmt;
     }

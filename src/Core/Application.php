@@ -5,6 +5,13 @@ declare(strict_types=1);
 namespace Framework\Core;
 
 use Framework\Container\Container;
+use Framework\Database\Connection;
+use Framework\Debug\Collector\LogCollector;
+use Framework\Debug\Collector\MemoryCollector;
+use Framework\Debug\Collector\QueryCollector;
+use Framework\Debug\Collector\RequestCollector;
+use Framework\Debug\QueryLog;
+use Framework\Debug\Toolbar\ToolbarMiddleware;
 use Framework\Event\EventDispatcher;
 use Framework\Event\ExceptionEvent;
 use Framework\Event\KernelEvents;
@@ -48,6 +55,7 @@ class Application
         $this->kernel = new Kernel($this->container, $router, $dispatcher);
 
         $this->wireLogger($dispatcher);
+        $this->wireDebugToolbar();
     }
 
     // ------------------------------------------------------------------
@@ -74,6 +82,44 @@ class Application
             },
             priority: -100,  // après les listeners métier
         );
+    }
+
+    // ------------------------------------------------------------------
+    // Debug Toolbar — activée uniquement si APP_DEBUG=true
+    // ------------------------------------------------------------------
+
+    private function wireDebugToolbar(): void
+    {
+        if (($_ENV['APP_DEBUG'] ?? 'false') !== 'true') {
+            return;
+        }
+
+        $request     = Request::fromGlobals();
+        $queryLog    = new QueryLog();
+        $logCollector = new LogCollector();
+
+        // Attache le QueryLog à la Connection si elle est enregistrée
+        if ($this->container->has(Connection::class)) {
+            try {
+                $this->container->get(Connection::class)->setQueryLog($queryLog);
+            } catch (\Throwable) {
+                // DB indisponible — on ignore silencieusement
+            }
+        }
+
+        // Branche le LogCollector sur le Logger si disponible
+        if ($this->container->has(Logger::class)) {
+            $this->container->get(Logger::class)->addHandler($logCollector);
+        }
+
+        $collectors = [
+            new RequestCollector($request),
+            new QueryCollector($queryLog),
+            new MemoryCollector(),
+            $logCollector,
+        ];
+
+        $this->kernel->addMiddleware(new ToolbarMiddleware($collectors));
     }
 
     // ------------------------------------------------------------------
