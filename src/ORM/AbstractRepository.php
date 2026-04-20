@@ -186,6 +186,51 @@ abstract class AbstractRepository
     }
 
     // ------------------------------------------------------------------
+    // Query Scopes — $repo->active()->recent()->get()
+    // ------------------------------------------------------------------
+
+    /**
+     * Déclenche un scope via __call.
+     * Les scopes sont des méthodes nommées scope{Name}(QueryBuilder $qb): QueryBuilder.
+     */
+    public function __call(string $name, array $args): RepositoryScope
+    {
+        $method = 'scope' . ucfirst($name);
+
+        if (!method_exists($this, $method)) {
+            throw new \BadMethodCallException(
+                "Scope « {$name} » introuvable sur " . static::class . '.'
+            );
+        }
+
+        $qb = $this->$method($this->createQueryBuilder(), ...$args);
+
+        return new RepositoryScope($this, $qb);
+    }
+
+    /**
+     * @internal Utilisé par RepositoryScope pour hydrater des lignes.
+     */
+    public function hydrateRows(array $rows, array $relations = []): array
+    {
+        return $this->hydrateCollection($rows, $relations);
+    }
+
+    /**
+     * @internal Utilisé par RepositoryScope pour hydrater une ligne.
+     */
+    public function hydrateRow(array $row, array $relations = []): object
+    {
+        $entity = $this->mapper->hydrate($this->getEntityClass(), $row);
+
+        if (!empty($relations)) {
+            $this->loadRelations($entity, $relations);
+        }
+
+        return $entity;
+    }
+
+    // ------------------------------------------------------------------
     // QueryBuilder
     // ------------------------------------------------------------------
 
