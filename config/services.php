@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Repository\UserRepository;
 use Framework\Auth\Auth;
+use Framework\Auth\Gate;
 use Framework\Container\Container;
 use Framework\Database\Connection;
 use Framework\Logger\Handler\FileHandler;
@@ -124,5 +125,13 @@ return function (Container $container): void {
     $container->singleton(Worker::class, fn (Container $c) => new Worker(
         $c->get(QueueInterface::class),
         $c,
+    ));
+
+    /*
+     * Gate — système d'autorisation (abilities + policies).
+     * Le userResolver récupère l'utilisateur depuis Auth (session).
+     */
+    $container->singleton(Gate::class, fn (Container $c) => new Gate(
+        fn () => $c->get(Auth::class)->user(),
     ));
 };

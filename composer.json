@@ -22,7 +22,10 @@
             "Framework\\": "src/",
             "App\\": "app/",
             "Migrations\\": "migrations/"
-        }
+        },
+        "files": [
+            "src/Support/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
