@@ -15,6 +15,28 @@ use PHPUnit\Framework\TestCase;
 
 // ── Fixtures ──────────────────────────────────────────────────────────
 
+enum ArticleStatus: string
+{
+    case Draft     = 'draft';
+    case Published = 'published';
+    case Archived  = 'archived';
+}
+
+#[Entity(table: 'articles_with_status')]
+class ArticleWithStatusEntity
+{
+    #[Id]
+    #[GeneratedValue]
+    #[Column(type: 'integer')]
+    private ?int $id = null;
+
+    #[Column(type: 'string')]
+    private string $title = '';
+
+    #[Column(type: 'string', nullable: true)]
+    private ?ArticleStatus $status = null;
+}
+
 #[Entity(table: 'articles')]
 class ArticleEntity
 {
@@ -244,5 +266,66 @@ class EntityMapperTest extends TestCase
         $prop->setAccessible(true);
 
         return $prop->getValue($entity);
+    }
+
+    // ------------------------------------------------------------------
+    // Enum support
+    // ------------------------------------------------------------------
+
+    public function testHydratesCastsStringToBackedEnum(): void
+    {
+        $entity = $this->mapper->hydrate(ArticleWithStatusEntity::class, [
+            'id'     => '1',
+            'title'  => 'Hello',
+            'status' => 'published',
+        ]);
+
+        $ref    = new \ReflectionClass($entity);
+        $status = $this->getProp($entity, $ref, 'status');
+
+        $this->assertInstanceOf(ArticleStatus::class, $status);
+        $this->assertSame(ArticleStatus::Published, $status);
+    }
+
+    public function testHydratesNullableEnumAsNull(): void
+    {
+        $entity = $this->mapper->hydrate(ArticleWithStatusEntity::class, [
+            'id'     => '1',
+            'title'  => 'Hello',
+            'status' => null,
+        ]);
+
+        $ref    = new \ReflectionClass($entity);
+        $status = $this->getProp($entity, $ref, 'status');
+
+        $this->assertNull($status);
+    }
+
+    public function testExtractConvertsEnumToScalar(): void
+    {
+        $entity = $this->mapper->hydrate(ArticleWithStatusEntity::class, [
+            'id'     => '1',
+            'title'  => 'Hello',
+            'status' => 'draft',
+        ]);
+
+        $data = $this->mapper->extract($entity);
+
+        $this->assertSame('draft', $data['status']);
+        $this->assertIsString($data['status']);
+    }
+
+    public function testExtractHandlesNullEnum(): void
+    {
+        $entity = $this->mapper->hydrate(ArticleWithStatusEntity::class, [
+            'id'     => '1',
+            'title'  => 'Hello',
+            'status' => null,
+        ]);
+
+        $data = $this->mapper->extract($entity);
+
+        $this->assertArrayHasKey('status', $data);
+        $this->assertNull($data['status']);
     }
 }
