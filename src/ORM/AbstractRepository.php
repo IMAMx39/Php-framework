@@ -101,7 +101,7 @@ abstract class AbstractRepository
         $qb = $this->createQueryBuilder();
 
         foreach ($criteria as $column => $value) {
-            $qb->where($column, $value);
+            $qb->where($column, $value instanceof \BackedEnum ? $value->value : $value);
         }
 
         foreach ($orderBy as $column => $direction) {
@@ -126,7 +126,7 @@ abstract class AbstractRepository
         $qb = $this->createQueryBuilder();
 
         foreach ($criteria as $column => $value) {
-            $qb->where($column, $value);
+            $qb->where($column, $value instanceof \BackedEnum ? $value->value : $value);
         }
 
         return $qb->count();

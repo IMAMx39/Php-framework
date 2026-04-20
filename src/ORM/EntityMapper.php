@@ -51,6 +51,17 @@ class EntityMapper
 
             $value = $this->cast($row[$columnName], $column->type, $column->nullable);
 
+            // Cast BackedEnum : 'active' → Status::Active
+            if ($value !== null) {
+                $phpType = $property->getType();
+                if ($phpType instanceof \ReflectionNamedType) {
+                    $typeName = $phpType->getName();
+                    if (enum_exists($typeName) && is_subclass_of($typeName, \BackedEnum::class)) {
+                        $value = $typeName::from($value);
+                    }
+                }
+            }
+
             $property->setAccessible(true);
             $property->setValue($entity, $value);
         }
@@ -113,6 +124,11 @@ class EntityMapper
             // On n'inclut pas les valeurs null sauf si la colonne est nullable
             if ($value === null && !$column->nullable) {
                 continue;
+            }
+
+            // BackedEnum → valeur scalaire pour la DB
+            if ($value instanceof \BackedEnum) {
+                $value = $value->value;
             }
 
             $data[$columnName] = $value;
