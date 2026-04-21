@@ -1,0 +1,56 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+use Framework\Console\Command\MakeControllerCommand;
+use Framework\Console\Command\MakeEntityCommand;
+use Framework\Console\Command\MakeMigrationCommand;
+use Framework\Console\Command\MigrateCommand;
+use Framework\Console\Command\MigrateRollbackCommand;
+use Framework\Console\Command\MigrateStatusCommand;
+use Framework\Console\Command\QueueFlushCommand;
+use Framework\Console\Command\QueueWorkCommand;
+use Framework\Console\ConsoleApplication;
+use Framework\Console\Generator;
+use Framework\Core\Application;
+use Framework\Database\Connection;
+use Framework\Migration\MigrationRunner;
+use Framework\Queue\QueueInterface;
+use Framework\Queue\Worker;
+
+$app       = new Application(dirname(__DIR__));
+$container = $app->getContainer();
+$basePath  = dirname(__DIR__);
+
+$generator = new Generator($basePath);
+$console   = new ConsoleApplication($container);
+
+try {
+    $runner = new MigrationRunner(
+        db: $container->get(Connection::class),
+        migrationsPath: $basePath . '/migrations',
+        migrationsNamespace: 'Migrations',
+    );
+
+    $console->add(new MigrateCommand($runner));
+    $console->add(new MigrateRollbackCommand($runner));
+    $console->add(new MigrateStatusCommand($runner));
+} catch (\Throwable $e) {
+    fwrite(STDERR, "\033[33m[avertissement] Commandes de migration indisponibles : {$e->getMessage()}\033[0m\n\n");
+}
+
+$console->add(new MakeEntityCommand($generator));
+$console->add(new MakeMigrationCommand($generator));
+$console->add(new MakeControllerCommand($generator));
+
+try {
+    $console->add(new QueueWorkCommand($container->get(Worker::class)));
+    $console->add(new QueueFlushCommand($container->get(QueueInterface::class)));
+} catch (\Throwable $e) {
+    fwrite(STDERR, "\033[33m[avertissement] Commandes queue indisponibles : {$e->getMessage()}\033[0m\n\n");
+}
+
+exit($console->run($argv));
